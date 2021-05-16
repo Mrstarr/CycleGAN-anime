@@ -3,14 +3,14 @@ import torch.nn.functional as F
 
 
 class ConvBlock(nn.Module):
-    def __init__(self, input_nc, output_nc, nf, normal='instance',stride = 1, padding = True, padding_mode = 'reflection', activation ="relu",transpose = False):     
+    def __init__(self, input_nc, output_nc, nf, normal='instance',stride = 1, padding = True, padding_mode = 'reflect', activation ="relu",transpose = False):     
         super(ConvBlock,self).__init__()
         if padding:
             pad = int((nf - 1)/2)    # keep the size unchanged, 3x3: pad 1   7x7: pad 3
             if not transpose:
-                ConvModel = [nn.Conv2d(input_nc, output_nc, nf, stride, pad, padding_mode)]
+                ConvModel = [nn.Conv2d(input_nc, output_nc, nf, stride, pad, padding_mode = padding_mode)]
             else:
-                ConvModel = [nn.ConvTranspose2d(input_nc, output_nc, nf, stride, padding=pad, padding_mode = padding_mode,output_padding= pad)]
+                ConvModel = [nn.ConvTranspose2d(input_nc, output_nc, nf, stride, padding=pad, padding_mode = 'zeros',output_padding= pad)]
         else:
             if not transpose:
                 ConvModel = [nn.Conv2d(input_nc, output_nc, nf, stride)]
@@ -45,7 +45,7 @@ class ConvBlock(nn.Module):
         
         self.ConvModel = nn.Sequential(*ConvModel)
     
-    def foward(self,x):
+    def forward(self,x):
         return self.ConvModel(x)
 
 
@@ -55,7 +55,7 @@ class ResBlock(nn.Module):
 
         res_b = [ConvBlock(input_nc,input_nc,3,activation ='relu'),
                     ConvBlock(input_nc,input_nc,3,activation = None)]
-        self.res_b = res_b
+        self.res_b = nn.Sequential(*res_b)
     
 
     def forward(self,x):
@@ -63,18 +63,18 @@ class ResBlock(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self,input_nc, output_nc, n_resblock = 9):
+    def __init__(self,input_nc, output_nc, n_resblock = 6):
         super(Generator,self).__init__()
 
         model = [ConvBlock(input_nc,64,7)]
-        model += [ConvBlock(64,128,3,stride=2,padding_mode='zero')]
-        model += [ConvBlock(128,256,3,stride=2,padding_mode='zero')]
+        model += [ConvBlock(64,128,3,stride=2,padding_mode='zeros')]
+        model += [ConvBlock(128,256,3,stride=2,padding_mode='zeros')]
 
         for _ in range(n_resblock):
             model += [ResBlock(256)]
 
-        model += [ConvBlock(256,128,3,stride=2,padding='zero',transpose=True)]
-        model += [ConvBlock(128,64,3,stride=2,padding='zero',transpose=True)]
+        model += [ConvBlock(256,128,3,stride=2,padding='zeros',transpose=True)]
+        model += [ConvBlock(128,64,3,stride=2,padding='zeros',transpose=True)]
         model += [ConvBlock(64,output_nc,7,activation='tanh')]
 
         self.model = nn.Sequential(*model)
@@ -87,10 +87,10 @@ class Discriminator(nn.Module):
     def __init__(self, input_nc):
         super(Discriminator,self).__init__()
 
-        conv1 = ConvBlock(input_nc,64,3,normal = None,stride = 2,padding_mode='zero',activation='lrelu')
-        conv2 = ConvBlock(64,128,3,stride=2,padding_mode='zero',activation='lrelu') 
-        conv3 = ConvBlock(128,256,3,stride=2,padding_mode='zero',activation='lrelu')
-        conv4 = ConvBlock(256,512,3,stride=2,padding_mode='zero',activation='lrelu')
+        conv1 = ConvBlock(input_nc,64,3,normal = None,stride = 2,padding_mode='zeros',activation='lrelu')
+        conv2 = ConvBlock(64,128,3,stride=2,padding_mode='zeros',activation='lrelu') 
+        conv3 = ConvBlock(128,256,3,stride=2,padding_mode='zeros',activation='lrelu')
+        conv4 = ConvBlock(256,512,3,stride=2,padding_mode='zeros',activation='lrelu')
 
         fc_layer = nn.Conv2d(512,1,3,padding = 1)
         model = [conv1, conv2, conv3, conv4, fc_layer]
