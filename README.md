@@ -6,7 +6,7 @@ wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download
 
     .
     ├── datasets                   
-    |   ├── <dataset_name>         # i.e. brucewayne2batman
+    |   ├── Real2Anime
     |   |   ├── train              # Training
     |   |   |   ├── A              # 6656 real photos, 256*256
     |   |   |   └── B              # 1650 Shinkai smooth photo, 256*256
