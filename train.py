@@ -76,8 +76,8 @@ def train(config, device):
     scheduler_DisB = SchedulerFactory(config, "linear", opt_DisB)()
 
     # Predefine target tensor for each batch
-    target_1 = torch.ones(config.batch_size)
-    target_0 = torch.zeros(config.batch_size)
+    target_1 = torch.ones(config.batch_size).to(device)
+    target_0 = torch.zeros(config.batch_size).to(device)
 
     # Dataloader
     train_loader = LoadData().train()
@@ -183,24 +183,24 @@ def train(config, device):
                 "real_B": wandb.Image(real_B),
                 "fake_A": wandb.Image(fake_A),
                 "fake_B": wandb.Image(fake_B),
-            },
-            step=i_epoch,
+            }
+#             ,step=i_epoch,
         )
 
         # Save models checkpoints
         save_path = "output/{}".format(run_name)
         os.mkdir(save_path)
         torch.save(
-            Gen_A2B.state_dict(), save_path + "/Gen_A2B_epoch_{}.pth".format(i_epoch)
+            Gen_A2B.state_dict(), save_path + "/Gen_A2B.pth"
         )
         torch.save(
-            Gen_B2A.state_dict(), save_path + "/Gen_B2A_epoch_{}.pth".format(i_epoch)
+            Gen_B2A.state_dict(), save_path + "/Gen_B2A.pth"
         )
         torch.save(
-            Dis_A.state_dict(), save_path + "/Dis_A_epoch_{}.pth".format(i_epoch)
+            Dis_A.state_dict(), save_path + "/Dis_A.pth"
         )
         torch.save(
-            Dis_B.state_dict(), save_path + "/Dis_B_epoch_{}.pth".format(i_epoch)
+            Dis_B.state_dict(), save_path + "/Dis_B.pth"
         )
         print("Model weights saved at {}".format(save_path))
 
