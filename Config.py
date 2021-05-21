@@ -7,7 +7,7 @@ START_EPOCH = 0  # epoch idx of beginning
 NUM_EPOCH = 200  # all epoch
 START_DECAY_EPOCH = 100  # epoch idx of decay
 BATCH_SIZE = 1
-DATA_ROOT = "datasets/horse2zebra/"
+DATA_ROOT = "datasets/Real2Anime2/"
 LEARNING_RATE = 0.0002
 
 # IMG_SIZE = 256

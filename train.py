@@ -12,13 +12,14 @@ import os
 import torch
 from torch import nn
 from torch import Tensor
+import torch.nn.functional as F
 import wandb
 
 
 def init_normal(m):
     """A function for weights initialization"""
     classname = m.__class__.__name__
-    if classname.find("Conv") != -1:
+    if classname.find("Conv2d") != -1 or classname.find("ConvTranspose2d") != -1:
         torch.nn.init.normal(m.weight.data, 0.0, 0.02)
     elif classname.find("BatchNorm2d") != -1:
         torch.nn.init.normal(m.weight.data, 1.0, 0.02)
@@ -55,7 +56,7 @@ def train(config, device):
     lr = wandb.config.learning_rate = config.learning_rate
     wandb.config.time_string = time_string = datetime.now().strftime(
         "%Y-%m-%d_%H-%M-%S-%f"
-    )
+    )   
     run_name = wandb.config.run_name = "saved_models/det_{}".format(time_string)
     w_gan = wandb.config.w_gan = config.w_gan
     w_cycle = wandb.config.w_cycle = config.w_cycle
@@ -63,11 +64,11 @@ def train(config, device):
 
     # Init optimizer
     opt_Gen = torch.optim.Adam(
-        params=chain(Gen_A2B.parameters(), Gen_B2A.parameters()), lr=lr
+        params=chain(Gen_A2B.parameters(), Gen_B2A.parameters()), lr=lr, betas=(0.5, 0.999)
     )
     # omit: betas=(0.5, 0.999), default: (0.9, 0.999)
-    opt_DisA = torch.optim.Adam(params=Dis_A.parameters(), lr=lr)  # ditto
-    opt_DisB = torch.optim.Adam(params=Dis_B.parameters(), lr=lr)  # ditto
+    opt_DisA = torch.optim.Adam(params=Dis_A.parameters(), lr=lr, betas=(0.5, 0.999))  # ditto
+    opt_DisB = torch.optim.Adam(params=Dis_B.parameters(), lr=lr, betas=(0.5, 0.999))  # ditto
 
     # Init lr scheduler
     scheduler_Gen = SchedulerFactory(config, "linear", opt_Gen)()
@@ -94,7 +95,7 @@ def train(config, device):
             # How to show image when debugging:
             # >>> plt.imshow(img_batch['A'].squeeze(0).permute(1, 2, 0))
             # >>> plt.show()
-
+            opt_Gen.zero_grad()
             # ----- STEP 0: Get real images ----- #
             real_A = img_batch["A"].to(device)
             real_B = img_batch["B"].to(device)
@@ -109,44 +110,44 @@ def train(config, device):
             rec_A = Gen_B2A(fake_B)  # A -> B -> A
             rec_B = Gen_A2B(fake_A)
 
-            loss_identity = nn.L1Loss(real_A, identity_A) + nn.L1Loss(
+            loss_identity = F.l1_loss(real_A, identity_A) + F.l1_loss(
                 real_B, identity_B
             )
-            loss_GAN = nn.MSELoss(Dis_B(fake_B), target_1) + nn.MSELoss(
+            loss_GAN = F.mse_loss(Dis_B(fake_B), target_1) + F.mse_loss(
                 Dis_A(fake_A), target_1
             )
-            loss_cycle = nn.L1Loss(rec_A, real_A) + nn.L1Loss(rec_B, real_B)
+            loss_cycle = F.l1_loss(rec_A, real_A) + F.l1_loss(rec_B, real_B)
 
             loss_G = (
                 loss_GAN * w_gan + loss_cycle * w_cycle + loss_identity * w_identity
             )
 
             # backward
-            opt_Gen.zero_grad()
+            
             loss_G.backward()
             opt_Gen.step()
             # ----- Finish training generators ----- #
 
             # ----- STEP 2: Train discriminators ----- #
-
+            opt_DisA.zero_grad()
             # forward: A
-            loss_A_real = nn.MSELoss(Dis_A(real_A), target_1)
+            loss_A_real = F.mse_loss(Dis_A(real_A), target_1)
             # warning: must detach() fake_A to exclude the G part in the graph
-            loss_A_fake = nn.MSELoss(Dis_A(fake_A.detach()), target_0)
+            loss_A_fake = F.mse_loss(Dis_A(fake_A.detach()), target_0)
             loss_D_A = (loss_A_real + loss_A_fake) * 0.5
 
             # backward: A
-            opt_DisA.zero_grad()
+            
             loss_D_A.backward()
             opt_DisA.step()
-
+            opt_DisB.zero_grad()
             # forward: B
-            loss_B_real = nn.MSELoss(Dis_B(real_B), target_1)
-            loss_B_fake = nn.MSELoss(Dis_B(fake_B.detach()), target_0)
+            loss_B_real = F.mse_loss(Dis_B(real_B), target_1)
+            loss_B_fake = F.mse_loss(Dis_B(fake_B.detach()), target_0)
             loss_D_B = (loss_B_real + loss_B_fake) * 0.5
 
             # backward: B
-            opt_DisB.zero_grad()
+            
             loss_D_B.backward()
             opt_DisB.step()
 
@@ -165,6 +166,7 @@ def train(config, device):
                 },
                 # step=current_iteration,
             )
+            print("Loss_G:",loss_G.item()," Loss_D:",(loss_D_A + loss_D_B).item())
 
         # ----- end of batch loop ----- #
         # ----- back to epoch loop ----- #
