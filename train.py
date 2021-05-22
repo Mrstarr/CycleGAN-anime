@@ -26,12 +26,13 @@ def init_normal(m):
         torch.nn.init.constant(m.bias.data, 0.0)
 
 
-def train(config, device):
+def train(config, device, pre_train=False):
     """
     Train our networks.
     Args:
         config: configuration
         device: The device to train on
+        pre_train: Load old models (not implemented yet)
     """
 
     wandb.init(project="CycleGAN_DD2424")
@@ -57,7 +58,7 @@ def train(config, device):
     wandb.config.time_string = time_string = datetime.now().strftime(
         "%Y-%m-%d_%H-%M-%S-%f"
     )   
-    run_name = wandb.config.run_name = "saved_models/det_{}".format(time_string)
+    run_name = wandb.config.run_name = "det_{}".format(time_string)
     w_gan = wandb.config.w_gan = config.w_gan
     w_cycle = wandb.config.w_cycle = config.w_cycle
     w_identity = wandb.config.w_identity = config.w_identity
@@ -76,8 +77,8 @@ def train(config, device):
     scheduler_DisB = SchedulerFactory(config, "linear", opt_DisB)()
 
     # Predefine target tensor for each batch
-    target_1 = torch.ones(config.batch_size).to(device)
-    target_0 = torch.zeros(config.batch_size).to(device)
+    target_1 = torch.ones(config.batch_size, 1).to(device)
+    target_0 = torch.zeros(config.batch_size, 1).to(device)
 
     # Dataloader
     train_loader = LoadData().train()
@@ -96,6 +97,7 @@ def train(config, device):
             # >>> plt.imshow(img_batch['A'].squeeze(0).permute(1, 2, 0))
             # >>> plt.show()
             opt_Gen.zero_grad()
+            
             # ----- STEP 0: Get real images ----- #
             real_A = img_batch["A"].to(device)
             real_B = img_batch["B"].to(device)
@@ -130,6 +132,7 @@ def train(config, device):
 
             # ----- STEP 2: Train discriminators ----- #
             opt_DisA.zero_grad()
+            
             # forward: A
             loss_A_real = F.mse_loss(Dis_A(real_A), target_1)
             # warning: must detach() fake_A to exclude the G part in the graph
@@ -137,17 +140,17 @@ def train(config, device):
             loss_D_A = (loss_A_real + loss_A_fake) * 0.5
 
             # backward: A
-            
             loss_D_A.backward()
             opt_DisA.step()
+            
             opt_DisB.zero_grad()
+            
             # forward: B
             loss_B_real = F.mse_loss(Dis_B(real_B), target_1)
             loss_B_fake = F.mse_loss(Dis_B(fake_B.detach()), target_0)
             loss_D_B = (loss_B_real + loss_B_fake) * 0.5
 
             # backward: B
-            
             loss_D_B.backward()
             opt_DisB.step()
 
@@ -176,20 +179,28 @@ def train(config, device):
         scheduler_DisA.step()
         scheduler_DisB.step()
 
+        # visualize fake image
+        fake_A_new = torch.mul(torch.add(fake_A, 1.0), 0.5)
+        fake_B_new = torch.mul(torch.add(fake_B, 1.0), 0.5)
+        
         # log last image in each epoch
         wandb.log(
             {
                 "real_A": wandb.Image(real_A),
                 "real_B": wandb.Image(real_B),
-                "fake_A": wandb.Image(fake_A),
-                "fake_B": wandb.Image(fake_B),
+                "fake_A": wandb.Image(fake_A_new),
+                "fake_B": wandb.Image(fake_B_new),
             }
 #             ,step=i_epoch,
         )
 
         # Save models checkpoints
-        save_path = "output/{}".format(run_name)
-        os.mkdir(save_path)
+        
+        save_path = "./output/{}".format(run_name)
+        
+        if i_epoch == 0:
+            os.mkdir(save_path)
+            
         torch.save(
             Gen_A2B.state_dict(), save_path + "/Gen_A2B.pth"
         )
