@@ -7,7 +7,7 @@ START_EPOCH = 0  # epoch idx of beginning
 NUM_EPOCH = 200  # all epoch
 START_DECAY_EPOCH = 100  # epoch idx of decay
 BATCH_SIZE = 1
-DATA_ROOT = "datasets/Real2Anime2/"
+DATA_ROOT = "datasets/horse2zebra/"
 LEARNING_RATE = 0.0002
 
 # IMG_SIZE = 256
@@ -20,6 +20,10 @@ NUM_CPU = 2  # for dataloader
 WEIGHT_IDENTITY = 5.0
 WEIGHT_GAN = 1.0
 WEIGHT_CYCLE = 10.0
+
+# path
+PATH_A2B = './output/<insert model name here>'
+PATH_B2A = './output/<insert model name here>'
 
 # ----- ENDING ----- #
 
@@ -50,6 +54,9 @@ class Config:
         self.output_ch = OUTPUT_CHANNEL
         # device
         self.num_cpu = NUM_CPU
+        # path
+        self.path_a2b = PATH_A2B
+        self.path_b2a = PATH_B2A
 
 
 # This global variable is for setting parameters
