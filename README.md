@@ -13,4 +13,4 @@ wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download
 ```
 unzip Real2Anime2.zip
 ```
-More information will be released after Jerry and I finishing the ducking control course:)
+More information will be released after Jerry and I finishing the exam of Advanced Controll:)
